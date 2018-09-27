@@ -35,3 +35,54 @@
     每种待处理信号只能有1个 多余的直接丢弃 ??
     并且 目标进程可以选择阻塞这些信号
     所以 此处采用一个队列维护 等待处理的消息 类似于 producer-consumer模式
+    
+  接受信号
+    当 内核 从异常处理返回 会检查信号队列来判断
+      如果信号队列为空 返回下一条指令
+      如果非空 强制进程处理这些信号 处理完成之后 才会返回该进程控制流的 下一条指令
+
+    也就是说 信号伴随异常发送 但是信号的处理需要等待 内核处理完异常之后
+      因为 信号处理 本质上是 用户函数级别的处理
+
+    通常每种信号对应了一种默认的接受方式
+      例如 进程终止 进程忽略 等等
+    当然也可以修改接受方式
+      例如 用户函数 称为信号处理程序 【signal handler】
+
+    通过把 signal handler 的地址传递给 signal函数 来完成自定义的操作
+    这一动作称为 设置信号处理程序【installing the handler】
+    调用signal handler的过程称为 捕捉信号【catching the signal】
+    signal handler的执行 称为 处理信号【handling the signal】
+
+    此外hanlder函数由唯一的一个参数 代表信号类型
+    也就是说 允许 信号处理程序根据不同的信号类型做出不同的操作
+      类似于 java的catch不同类型 ??
+
+    当 信号处理程序 处理完成时,会return到被信号中断的地方 继续执行 或者 返回一个错误
+
+  非本地跳转
+    用户级的异常控制流 不需要走常见的 调用-返回 流程 【call and return sequence】
+    叫做 非本地跳转 【no local jump】
+    通过 setjmp 和 longjmp 实现
+      setjmp 保存当前进程的上下文 到 env buffer 然后返回
+      longjmp 从env buffer恢复上下文 然后出发一次setjmp返回
+      也就是 setjmp 设置保存点 longjmp跳转到 这个点
+
+    作用
+      从嵌套函数中直接返回某一段错误处理代码
+      或者任意跳转
+
+    java
+      Java中的try-catch也是基于此非本地跳转
+      catch相当于setjmp throw相当于longjump
+      只要出发throw 就会跳到catch执行
+
+      感觉仅限于手动throw的情况 是基于此非本地跳转
+      如果系统异常 或者 error 也应该必须走内核
+
+补充
+  系统调用 通过异常处理完成
+  进程提供2中抽象
+    独立的逻辑控制流 好像每个进程独立占用cpu
+    私有的地址空间   好像每个进程独立占用内存
+
